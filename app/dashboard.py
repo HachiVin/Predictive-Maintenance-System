@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import requests
 import time
+from app.inference import ModelInference # Mengimpor model AI secara lokal
 
 # Konfigurasi Halaman 
 st.set_page_config(
@@ -10,8 +10,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Variabel Endpoint API Backend
-API_URL = "http://127.0.0.1:8000/predict"
+# Inisialisasi Model AI Langsung di Dasbor (Tanpa Latensi Jaringan API)
+@st.cache_resource
+def load_model():
+    return ModelInference()
+
+model_service = load_model()
 
 # Header Utama (Minimalis)
 st.title("Predictive Maintenance System")
@@ -59,7 +63,7 @@ with tab1:
         💡 **Bagaimana Simulasi Dasbor Ini Bekerja?**
         Di pabrik nyata, data dikirim langsung oleh alat *Sensor Node IoT* ke server via jaringan (seperti Apache Kafka). 
         
-        Untuk keperluan demonstrasi ini, sistem menggunakan aliran data historis yang 'ditembakkan' secara berurutan ke *endpoint* API AI. Ini menghasilkan simulasi *real-time monitoring* yang identik dengan layar kontrol di lantai pabrik sungguhan.
+        Untuk keperluan demonstrasi *cloud* ini, sistem menggunakan aliran data historis ringan yang diproses secara langsung (*standalone*) oleh model AI di dalam memori aplikasi. Ini menghasilkan simulasi *real-time monitoring* tanpa memerlukan server API terpisah.
         """)
 
 # ==========================================
@@ -102,7 +106,8 @@ with tab2:
         st.session_state.akumulasi_laporan = []
         
         try:
-            df = pd.read_csv('data/processed/features_ready.csv')
+            # Menggunakan dataset sampel yang ringan
+            df = pd.read_csv('data/demo_telemetry.csv')
             df = df.fillna('None')
             
             while True:
@@ -114,8 +119,8 @@ with tab2:
                     payload = row.drop(['index', 'machineID'], errors='ignore').to_dict()
                     
                     try:
-                        response = requests.post(API_URL, json=payload)
-                        hasil = response.json()
+                        # Memanggil model secara langsung, bukan via API requests
+                        hasil = model_service.predict(payload)
                         
                         status = hasil.get('status', 'NORMAL')
                         prob = hasil.get('failure_probability', 0.0) * 100
@@ -180,7 +185,7 @@ with tab2:
                 time.sleep(3) 
 
         except FileNotFoundError:
-            st.error("System Error: Telemetry source file not found.")
+            st.error("System Error: Telemetry source file not found. Ensure 'data/demo_telemetry.csv' exists.")
 
 # ==========================================
 # TAB 3: SYSTEM SPECIFICATIONS
@@ -189,15 +194,13 @@ with tab3:
     st.subheader("Architecture & Model Details")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**API Backend (FastAPI)**")
-        st.code("""
-{
-  "volt": 170.5,
-  "rotate": 450.2,
-  "pressure": 98.6,
-  "vibration": 42.1
-}
-        """, language="json")
+        st.markdown("**Deployment Architecture**")
+        st.markdown("""
+        * **Mode:** Standalone Cloud Edition
+        * **Optimization:** Zero Network Latency via `@st.cache_resource`
+        * **Framework:** Streamlit Community Cloud
+        * **Telemetry Ingestion:** Real-time Batch Processing (3s interval)
+        """)
     with col2:
         st.markdown("**Machine Learning Engine**")
         st.markdown("""
@@ -206,3 +209,4 @@ with tab3:
         * **Class Handling:** SMOTE / Balanced Class Weights
         * **Pipeline:** Scikit-Learn
         """)
+        
