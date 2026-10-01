@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
-from app.inference import ModelInference # Mengimpor model AI secara lokal
+from inference import ModelInference
 
 # Konfigurasi Halaman 
 st.set_page_config(
@@ -209,4 +209,3 @@ with tab3:
         * **Class Handling:** SMOTE / Balanced Class Weights
         * **Pipeline:** Scikit-Learn
         """)
-        
