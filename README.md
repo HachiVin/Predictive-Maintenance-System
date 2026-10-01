@@ -10,7 +10,6 @@ Di industri manufaktur, pemeliharaan reaktif (menunggu mesin rusak) memicu biaya
 - Menggunakan *rolling window* 24 jam untuk menangkap pola degradasi temporal.
 - Menghasilkan log peringatan yang dapat dieksekusi (*actionable alerts*) oleh tim teknisi.
 
-
 ## Sumber Data & Konteks Simulasi
 Sistem ini dilatih dan divalidasi menggunakan **Microsoft Azure Predictive Maintenance Dataset**, sebuah *benchmark* standar industri yang berisi rekaman historis operasional dari 100 mesin berat di lapangan.
 - **Fitur Telemetri:** 4 sensor fisik utama yaitu Tegangan Listrik (*Voltage*), Putaran Mesin (*Rotation*), Tekanan (*Pressure*), dan Getaran (*Vibration*).
@@ -25,7 +24,11 @@ Pemasangan alat IoT pada mesin lama (*legacy equipment*) sangat efektif secara b
 - **Pemodelan:** Scikit-Learn (Random Forest), Pandas, NumPy
 - **API / Backend:** FastAPI, Uvicorn, Pydantic
 - **Frontend:** Streamlit
-- **Deployment:** Docker
+- **Deployment:** Docker & Streamlit Community Cloud (Standalone Edition)
+
+## 🚀 Live Demo & Arsitektur Deployment Baru
+Untuk keperluan demonstrasi publik, versi *live demo* di-*deploy* di **Streamlit Community Cloud** menggunakan pendekatan **Standalone**. Model AI dimuat langsung ke memori (`@st.cache_resource`) alih-alih melakukan HTTP Request ke API terpisah. Hal ini memastikan *zero network latency*, menekan biaya server, dan menghindari risiko pembatasan kuota *cloud provider*.
+👉 **[KLIK DI SINI UNTUK MELIHAT LIVE DEMO DASHBOARD](MASUKKAN_URL_STREAMLIT_ANDA_DI_SINI)**
 
 ## Cara Menjalankan (Quick Start)
 
