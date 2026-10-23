@@ -1,11 +1,15 @@
 venv/
+.venv/
 env/
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
 .env
 .DS_Store
 Thumbs.db
-data/
-*.csv
-*.joblib
+
+# Raw dataset (~80 MB): python scripts/download_data.py
+data/raw/
+data/processed/
+# The small replay set in data/replay/ is committed on purpose (demo + tests).

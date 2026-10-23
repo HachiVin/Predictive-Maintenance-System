@@ -1,0 +1,199 @@
+{
+ "machine_id": 13,
+ "model": "model1",
+ "age": 15,
+ "telemetry": [
+  {
+   "datetime": "2015-09-21T21:00:00",
+   "volt": 194.943,
+   "rotate": 468.3,
+   "pressure": 101.751,
+   "vibration": 53.366
+  },
+  {
+   "datetime": "2015-09-21T22:00:00",
+   "volt": 178.544,
+   "rotate": 496.476,
+   "pressure": 92.308,
+   "vibration": 56.301
+  },
+  {
+   "datetime": "2015-09-21T23:00:00",
+   "volt": 202.284,
+   "rotate": 508.367,
+   "pressure": 97.658,
+   "vibration": 46.094
+  },
+  {
+   "datetime": "2015-09-22T00:00:00",
+   "volt": 176.475,
+   "rotate": 407.678,
+   "pressure": 94.319,
+   "vibration": 51.695
+  },
+  {
+   "datetime": "2015-09-22T01:00:00",
+   "volt": 167.158,
+   "rotate": 435.738,
+   "pressure": 95.286,
+   "vibration": 45.227
+  },
+  {
+   "datetime": "2015-09-22T02:00:00",
+   "volt": 167.816,
+   "rotate": 431.001,
+   "pressure": 97.397,
+   "vibration": 46.73
+  },
+  {
+   "datetime": "2015-09-22T03:00:00",
+   "volt": 166.11,
+   "rotate": 393.853,
+   "pressure": 96.355,
+   "vibration": 52.594
+  },
+  {
+   "datetime": "2015-09-22T04:00:00",
+   "volt": 179.834,
+   "rotate": 482.16,
+   "pressure": 81.427,
+   "vibration": 51.461
+  },
+  {
+   "datetime": "2015-09-22T05:00:00",
+   "volt": 172.436,
+   "rotate": 383.056,
+   "pressure": 101.561,
+   "vibration": 49.02
+  },
+  {
+   "datetime": "2015-09-22T06:00:00",
+   "volt": 168.829,
+   "rotate": 553.927,
+   "pressure": 88.941,
+   "vibration": 51.356
+  },
+  {
+   "datetime": "2015-09-22T07:00:00",
+   "volt": 158.431,
+   "rotate": 421.184,
+   "pressure": 104.066,
+   "vibration": 50.893
+  },
+  {
+   "datetime": "2015-09-22T08:00:00",
+   "volt": 155.336,
+   "rotate": 353.353,
+   "pressure": 93.126,
+   "vibration": 44.203
+  },
+  {
+   "datetime": "2015-09-22T09:00:00",
+   "volt": 187.449,
+   "rotate": 446.067,
+   "pressure": 116.307,
+   "vibration": 52.462
+  },
+  {
+   "datetime": "2015-09-22T10:00:00",
+   "volt": 166.468,
+   "rotate": 402.964,
+   "pressure": 108.88,
+   "vibration": 45.52
+  },
+  {
+   "datetime": "2015-09-22T11:00:00",
+   "volt": 164.569,
+   "rotate": 564.199,
+   "pressure": 103.605,
+   "vibration": 48.403
+  },
+  {
+   "datetime": "2015-09-22T12:00:00",
+   "volt": 177.335,
+   "rotate": 405.808,
+   "pressure": 102.508,
+   "vibration": 44.797
+  },
+  {
+   "datetime": "2015-09-22T13:00:00",
+   "volt": 161.255,
+   "rotate": 469.642,
+   "pressure": 100.314,
+   "vibration": 56.283
+  },
+  {
+   "datetime": "2015-09-22T14:00:00",
+   "volt": 167.334,
+   "rotate": 558.065,
+   "pressure": 89.399,
+   "vibration": 45.255
+  },
+  {
+   "datetime": "2015-09-22T15:00:00",
+   "volt": 178.283,
+   "rotate": 436.234,
+   "pressure": 90.711,
+   "vibration": 47.996
+  },
+  {
+   "datetime": "2015-09-22T16:00:00",
+   "volt": 201.012,
+   "rotate": 406.46,
+   "pressure": 103.406,
+   "vibration": 51.79
+  },
+  {
+   "datetime": "2015-09-22T17:00:00",
+   "volt": 167.654,
+   "rotate": 426.959,
+   "pressure": 96.837,
+   "vibration": 44.372
+  },
+  {
+   "datetime": "2015-09-22T18:00:00",
+   "volt": 176.691,
+   "rotate": 434.155,
+   "pressure": 111.847,
+   "vibration": 51.075
+  },
+  {
+   "datetime": "2015-09-22T19:00:00",
+   "volt": 151.372,
+   "rotate": 546.289,
+   "pressure": 98.557,
+   "vibration": 56.772
+  },
+  {
+   "datetime": "2015-09-22T20:00:00",
+   "volt": 169.627,
+   "rotate": 465.456,
+   "pressure": 105.112,
+   "vibration": 57.861
+  }
+ ],
+ "errors": [
+  {
+   "datetime": "2015-09-22T06:00:00",
+   "error_id": "error5"
+  }
+ ],
+ "replacements": [
+  {
+   "datetime": "2015-07-25T06:00:00",
+   "comp": "comp4"
+  },
+  {
+   "datetime": "2015-08-24T06:00:00",
+   "comp": "comp3"
+  },
+  {
+   "datetime": "2015-08-24T06:00:00",
+   "comp": "comp1"
+  },
+  {
+   "datetime": "2015-09-08T06:00:00",
+   "comp": "comp2"
+  }
+ ]
+}

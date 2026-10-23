@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t pdm-api .
+      - name: Smoke test the image
+        run: |
+          docker run -d --name api -p 8000:8000 pdm-api
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && break; sleep 1; done
+          curl -fs -X POST localhost:8000/predict -H "Content-Type: application/json" \
+            -d @docs/example_request.json | tee /dev/stderr | grep -q '"status":"ALERT"'
+      - run: docker build -f Dockerfile.dashboard -t pdm-dashboard .

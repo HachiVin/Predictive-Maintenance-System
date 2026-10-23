@@ -1,0 +1,30 @@
+# Plant-HMI greys; colour is kept for abnormal states (see app/dashboard.py).
+[theme]
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
+baseRadius = "small"
+headingFontSizes = ["2rem", "1.55rem", "1.2rem", "1.05rem"]
+headingFontWeights = [600, 600, 600, 600]
+showWidgetBorder = true
+
+[theme.light]
+primaryColor = "#2d5b86"
+backgroundColor = "#e6e8ea"
+secondaryBackgroundColor = "#d6dade"
+textColor = "#1c2226"
+borderColor = "#bfc6cc"
+dataframeHeaderBackgroundColor = "#d6dade"
+redColor = "#b42318"
+orangeColor = "#a65f00"
+
+[theme.dark]
+primaryColor = "#86aed6"
+backgroundColor = "#1d2125"
+secondaryBackgroundColor = "#272c31"
+textColor = "#dde2e6"
+borderColor = "#3a4148"
+dataframeHeaderBackgroundColor = "#272c31"
+redColor = "#f0645a"
+orangeColor = "#e2a34a"
+
+[client]
+toolbarMode = "minimal"

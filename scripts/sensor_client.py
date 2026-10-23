@@ -1,56 +1,65 @@
+"""Replay the demo data against a running API, hour by hour, like a plant gateway would.
+
+uvicorn app.main:app --port 8000          # or: docker compose up api
+python scripts/sensor_client.py --machine 13 --start "2015-09-21 12:00" --hours 24
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
 import time
-import requests
+import urllib.error
+import urllib.request
+from pathlib import Path
+
 import pandas as pd
-import os
 
-API_URL = "http://localhost:8000/predict"
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/processed/features_ready.csv")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-def start_simulation():
-    print("=" * 60)
-    print("🤖 SENSOR CLIENT SIMULATOR (PABRIK INTEGRASI)")
-    print(f"Target API: {API_URL}")
-    print("=" * 60)
+from pdm.data import load_replay  # noqa: E402
+from pdm.replay import payload  # noqa: E402
 
-    if not os.path.exists(DATA_PATH):
-        print(f"❌ File data tidak ditemukan di {DATA_PATH}.")
-        print("Silakan jalankan notebook 01_eda_and_preprocessing.ipynb lebih dulu.")
-        return
 
-    df = pd.read_csv(DATA_PATH)
-    
-    # Kolom non-fitur yang dibuang sebelum dikirim ke API
-    ignore_cols = ['machineID', 'datetime', 'error_type', 'failure_type', 'is_broken', 'model']
-    feature_df = df.drop(columns=[c for c in ignore_cols if c in df.columns])
+def post(url: str, body: dict) -> dict:
+    request = urllib.request.Request(
+        url, json.dumps(body).encode(), {"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return json.loads(response.read())
 
-    print(f"📡 Mengirimkan aliran data sensor secara real-time ({len(feature_df)} baris data available)...")
-    print("Tekan Ctrl+C untuk menghentikan simulasi.\n")
 
-    for idx, row in feature_df.iterrows():
-        payload = row.to_dict()
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--api", default="http://localhost:8000")
+    parser.add_argument("--machine", type=int, default=13)
+    parser.add_argument("--start", default="2015-09-21 12:00")
+    parser.add_argument("--hours", type=int, default=24)
+    parser.add_argument("--delay", type=float, default=0.2, help="seconds between requests")
+    args = parser.parse_args()
+
+    tables = load_replay()
+    failures = tables.failures[tables.failures["machineID"] == args.machine]
+    print(
+        f"machine {args.machine}, recorded failures: "
+        f"{', '.join(f'{r.datetime:%m-%d %H:%M} {r.failure}' for r in failures.itertuples())}"
+    )
+    for hour in pd.date_range(args.start, periods=args.hours, freq="h"):
         try:
-            response = requests.post(API_URL, json=payload)
-            if response.status_code == 200:
-                res = response.json()
-                status = res['status']
-                prob = res['failure_probability'] * 100
-                rec = res['recommendation']
+            result = post(f"{args.api}/predict", payload(tables, args.machine, hour))
+        except urllib.error.HTTPError as exc:
+            print(f"{hour:%Y-%m-%d %H:%M}  HTTP {exc.code}: {exc.read().decode()[:200]}")
+            continue
+        except urllib.error.URLError as exc:
+            raise SystemExit(f"API not reachable at {args.api}: {exc.reason}") from exc
+        signals = "; ".join(result["signals"])
+        print(f"{hour:%Y-%m-%d %H:%M}  {result['status']:<5}  risk {result['risk']:.3f}  {signals}")
+        time.sleep(args.delay)
 
-                if status == "CRITICAL_WARNING":
-                    print(f"🔴 [CRITICAL] Baris #{idx} | Probabilitas Rusak: {prob:.1f}% | {rec}")
-                elif status == "WARNING":
-                    print(f"🟡 [WARNING]  Baris #{idx} | Probabilitas Rusak: {prob:.1f}% | {rec}")
-                else:
-                    print(f"🟢 [NORMAL]   Baris #{idx} | Probabilitas Rusak: {prob:.1f}%")
-            else:
-                print(f"❌ API Error ({response.status_code}): {response.text}")
+    with urllib.request.urlopen(f"{args.api}/metrics", timeout=10) as response:
+        print(json.dumps(json.loads(response.read()), indent=2))
 
-        except requests.exceptions.ConnectionError:
-            print("❌ Tidak dapat terhubung ke FastAPI server!")
-            print("Pastikan server FastAPI sudah berjalan dengan perintah: uvicorn app.main:app --reload")
-            break
-
-        time.sleep(1.5) # Jeda pengiriman log setiap 1.5 detik
 
 if __name__ == "__main__":
-    start_simulation()
+    main()
