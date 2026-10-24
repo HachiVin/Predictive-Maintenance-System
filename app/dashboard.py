@@ -92,7 +92,7 @@ MONTHS = [
 st.set_page_config(page_title="Inspeksi shift", layout="wide")
 st.html(
     """<style>
-    .block-container {padding-top: 2.2rem; max-width: 1400px}
+    .block-container {padding-top: 4.5rem; max-width: 1400px}  /* clear of the Cloud header */
     body, [data-testid="stDataFrame"] {font-variant-numeric: tabular-nums}
     [data-testid="stMetricValue"] {font-size: 1.6rem}
     .pdm-tile {border-radius: 6px; padding: 10px 12px 8px; background: rgba(127,127,127,.07);
@@ -191,6 +191,22 @@ def tanggal(ts, hari: bool = True, jam: bool = True) -> str:
     if hari:
         text = f"{DAYS[ts.weekday()]}, {text}"
     return f"{text}, {ts:%H:%M}" if jam else text
+
+
+def bind(name: str) -> dict:
+    """Widget arguments that keep ``state[name]`` when the widget's view is not shown.
+
+    Streamlit drops a widget's state when the widget is not rendered, so switching views
+    would reset the shift time, the machine and the replay clock. The value lives under
+    ``name``; the widget gets its own key, filled from it on every run.
+    """
+    widget_key = f"w_{name}"
+    state[widget_key] = state[name]
+
+    def copy_back() -> None:
+        state[name] = state[widget_key]
+
+    return {"key": widget_key, "on_change": copy_back}
 
 
 def legend() -> None:
@@ -458,6 +474,7 @@ def run_inspection(animate: bool = True) -> Inspection:
         progress.empty()
         stage.empty()
     state.inspections.append(result)
+    state.now = result.at.to_pydatetime()  # Riwayat mesin opens at the same hour
     return result
 
 
@@ -478,13 +495,13 @@ def inspection_view() -> None:
     day, hour, rand, go = st.columns([1.4, 1, 1.2, 1.6], vertical_alignment="bottom")
     day.date_input(
         "Tanggal shift",
-        key="shift_day",
+        **bind("shift_day"),
         min_value=first.date(),
         max_value=last.date(),
         format="DD/MM/YYYY",
     )
     hour.selectbox(
-        "Jam mulai", list(range(24)), key="shift_hour", format_func=lambda h: f"{h:02d}:00"
+        "Jam mulai", list(range(24)), format_func=lambda h: f"{h:02d}:00", **bind("shift_hour")
     )
     rand.button("Pilih shift acak", on_click=random_shift, width="stretch")
     start = go.button("Mulai inspeksi", type="primary", width="stretch")
@@ -515,6 +532,7 @@ def inspection_view() -> None:
         f"ini: {s['alert']} bahaya, {s['watch']} waspada.</div>",
         unsafe_allow_html=True,
     )
+    st.markdown("**Cek dengan kunci jawaban** (hanya bisa dilakukan pada data rekaman)")
     lines = []
     if s["broke_within_24h"] == 0:
         lines.append("Tidak ada mesin yang rusak dalam 24 jam setelah inspeksi ini.")
@@ -616,43 +634,49 @@ def inspection_view() -> None:
     )
 
 
+def history_limit() -> datetime:
+    """The last hour Riwayat mesin may show: the hour of the inspection, as in a real plant,
+    where nothing after the moment of the check has been recorded yet."""
+    at = state.inspection.at if state.inspection is not None else shift_time()
+    return pd.Timestamp(at).to_pydatetime()
+
+
+def back_to_limit() -> None:
+    state.now, state.playing = history_limit(), False
+
+
 def step_time(hours_: int) -> None:
-    state.now = min(max(state.now + timedelta(hours=hours_), first), last)
-    state.playing = False
-
-
-def jump_to_next_breakdown() -> None:
-    own = failures[failures["machineID"] == state.machine]
-    later = own[own["datetime"] > pd.Timestamp(state.now) + timedelta(hours=30)]
-    if not later.empty:
-        state.now = (later["datetime"].min() - timedelta(hours=30)).to_pydatetime()
+    state.now = min(max(state.now + timedelta(hours=hours_), first), history_limit())
     state.playing = False
 
 
 def history_view() -> None:
+    limit = history_limit()
+    if state.now > limit:
+        state.now = limit
     if state.playing:
-        state.now = min(state.now + timedelta(hours=state.step), last)
-        if state.now >= last:
+        state.now = min(state.now + timedelta(hours=state.step), limit)
+        if state.now >= limit:
             state.playing = False
 
     st.markdown("## Riwayat mesin")
     st.markdown(
-        "Putar ulang rekaman satu mesin jam demi jam untuk melihat bagaimana risikonya berubah, "
+        "Riwayat satu mesin **sampai jam inspeksi**, untuk melihat bagaimana risikonya berubah "
         "dan kenapa mesin itu masuk daftar inspeksi."
     )
+    source = "inspeksi terakhir" if state.inspection is not None else "shift yang dipilih"
     st.info(
-        "**Ini rekaman masa lalu (Sep–Des 2015), bukan ramalan.** Tombol maju dan mundur hanya "
-        "memutar rekaman yang sudah ada. Di setiap jam, model hanya memakai data 24 jam "
-        "**sebelumnya** dan menghasilkan satu angka: risiko rusak dalam 24 jam ke depan. Baris "
-        "*Kunci jawaban* dan tombol *Lompat* memakai log kerusakan yang sudah tercatat, hanya "
-        "untuk membuktikan apakah peringatannya benar. Di pemakaian nyata, keduanya tidak ada, "
-        "karena masa depan belum terjadi."
+        f"**Riwayat berhenti di jam {source}: {tanggal(limit)}.** Sama seperti di pabrik: "
+        "saat pengecekan, yang bisa dilihat hanya data yang sudah terekam sampai saat itu. "
+        "Di setiap jam, model memakai data 24 jam **sebelumnya** dan menghasilkan satu angka, "
+        "yaitu risiko rusak dalam 24 jam ke depan. Untuk melihat jam lain, ganti jam "
+        "inspeksinya di tab Inspeksi."
     )
     pick, clock = st.columns([1.4, 3], vertical_alignment="bottom")
-    pick.selectbox("Mesin", machine_ids, key="machine", format_func=lambda m: f"Mesin {m}")
+    pick.selectbox("Mesin", machine_ids, format_func=lambda m: f"Mesin {m}", **bind("machine"))
     clock.markdown(f"<div class='pdm-big'>{tanggal(state.now)}</div>", unsafe_allow_html=True)
 
-    back, play, forward, speed, jump = st.columns(
+    back, play, forward, speed, home = st.columns(
         [0.8, 1, 0.8, 1.3, 2.4], vertical_alignment="center"
     )
     back.button(
@@ -660,36 +684,50 @@ def history_view() -> None:
         on_click=step_time,
         args=(-1,),
         width="stretch",
-        help="Mundur satu jam di rekaman",
+        help="Mundur satu jam di riwayat",
     )
-    if play.button("Jeda" if state.playing else "Putar", width="stretch", type="primary"):
+    at_limit = state.now >= limit
+    if play.button(
+        "Jeda" if state.playing else "Putar",
+        width="stretch",
+        type="primary",
+        disabled=at_limit and not state.playing,
+        help="Putar riwayat maju sampai jam inspeksi",
+    ):
         state.playing = not state.playing
         st.rerun()
     forward.button(
-        "1 jam ▶", on_click=step_time, args=(1,), width="stretch", help="Maju satu jam di rekaman"
+        "1 jam ▶",
+        on_click=step_time,
+        args=(1,),
+        width="stretch",
+        disabled=at_limit,
+        help="Maju satu jam, paling jauh sampai jam inspeksi",
     )
     speed.selectbox(
         "Kecepatan",
         [1, 3, 6, 12],
-        key="step",
+        **bind("step"),
         label_visibility="collapsed",
         format_func=lambda h: f"{h} jam per detik",
     )
-    jump.button(
-        "Lompat ke 30 jam sebelum kerusakan berikutnya (demo)",
-        on_click=jump_to_next_breakdown,
-        width="stretch",
-        help="Memakai log kerusakan yang tercatat. Hanya ada di rekaman, tidak di pemakaian nyata.",
+    home.button(
+        "Kembali ke jam inspeksi", on_click=back_to_limit, width="stretch", disabled=at_limit
     )
     st.slider(
-        "Waktu rekaman",
+        "Waktu riwayat",
         min_value=first,
-        max_value=last,
+        max_value=limit,
         step=timedelta(hours=1),
-        key="now",
+        **bind("now"),
         format="DD/MM/YYYY, HH:mm",
         label_visibility="collapsed",
     )
+    if not at_limit:
+        st.caption(
+            f"Status di bawah adalah kondisi mesin pada {tanggal(state.now, hari=False)}, "
+            f"bukan pada jam inspeksi ({tanggal(limit, hari=False)})."
+        )
 
     machine = state.machine
     row = history[
@@ -699,14 +737,7 @@ def history_view() -> None:
     info = machines.loc[machine]
     left, right = st.columns([1, 2.2], gap="large")
     with left:
-        upcoming = ""
-        own = failures[(failures["machineID"] == machine) & (failures["datetime"] > state.now)]
-        if not own.empty:
-            hours_left = (own["datetime"].min() - pd.Timestamp(state.now)).total_seconds() / 3600
-            if hours_left <= 48:
-                comps = ", ".join(own.loc[own["datetime"] == own["datetime"].min(), "failure"])
-                upcoming = f"{comps} rusak {hours_left:.0f} jam lagi"
-        st.html(machine_tile(machine, a.status, a.risk, a.signals, upcoming))
+        st.html(machine_tile(machine, a.status, a.risk, a.signals, ""))
         st.markdown(f"**Yang harus dilakukan:** {a.action}")
         if a.signals:
             st.markdown("**Yang menonjol:**\n" + "\n".join(f"- {s}" for s in a.signals))
@@ -722,7 +753,7 @@ def history_view() -> None:
             f"Mesin menjadi kuning (waspada) di atas {predictor.thresholds['watch']:.0%} dan "
             f"merah (bahaya) di atas {predictor.thresholds['alert']:.0%}. Tanda kuning di bawah: "
             "kode error. Tanda abu-abu: penggantian komponen terjadwal. Garis merah tegak: "
-            "kerusakan yang tercatat."
+            "kerusakan yang sudah terjadi sebelumnya."
         )
     with st.expander("Bacaan sensor, 7 hari terakhir"):
         grid = st.columns(2)

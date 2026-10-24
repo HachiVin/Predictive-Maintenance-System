@@ -35,9 +35,10 @@ and this README are in English.
    down in the next 24 hours and how many of them were on the list. Enter your own cost of a
    breakdown and of an inspection to see what the list is worth; no cost is assumed. The
    report downloads as CSV.
-2. **Riwayat mesin** (machine history). Replay the recorded history of one machine hour by
-   hour: its risk over the last 7 days, the error codes and replacements, and its sensor
-   readings against their normal range.
+2. **Riwayat mesin** (machine history). The history of one machine **up to the hour of the
+   inspection**, as a planner would see it at that moment: its risk over the last 7 days, the
+   error codes and replacements, and its sensor readings against their normal range. It can
+   be stepped back hour by hour but never past the inspection hour.
 3. **Seberapa akurat?** The test results below and the limits of the data.
 4. **Kesehatan sistem** (system health). Accuracy of the inspections run in this session,
    model time per machine, a scaling test for 100 to 10,000 machines, and input drift.
@@ -46,12 +47,12 @@ The data shown is September to December 2015, which the model never saw in train
 
 **What is prediction and what is not.** At every hour the model uses only the 24 hours
 before it and returns one number, the probability of a breakdown in the next 24 hours. That
-number is the prediction. Because this is replayed history, the dashboard can also look up
-what really happened next in the failure log: the *Kunci jawaban* ("answer key") line on a
-machine, the check in the inspection report, and the button that jumps to 30 hours before a
-recorded breakdown. These exist only to show whether the predictions were right. In live use
-the future has not happened yet, so they would not be there, and the same check can only be
-made a day later.
+number is the prediction. *Riwayat mesin* stops at the inspection hour, so it shows only
+what a planner could know at that moment. Because this is replayed history, the inspection
+report can also look up what really happened in the next 24 hours: the *Kunci jawaban*
+("answer key") line on each flagged machine and the check under the report's headline. They
+exist only to show whether the predictions were right. In live use the future has not
+happened yet, so the same check can only be made a day later.
 
 ## Results
 
