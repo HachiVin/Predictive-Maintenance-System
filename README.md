@@ -5,7 +5,7 @@ to break down in the next 24 hours, and says what stands out on each. Behind it 
 trained on a year of sensor, error and repair records, a REST API, Docker images and
 monitoring.
 
-**Live demo:** [ISI: URL Streamlit Cloud]
+**Live demo:** https://predictive-maintenance-system-dpbckvhsr5taeukuh8edng.streamlit.app/
 
 ![Inspection report for 30 September 2015, 20:00: 4 of 100 machines to inspect; the 3 machines that broke down in the next 24 hours are all on the list](docs/dashboard.png)
 
