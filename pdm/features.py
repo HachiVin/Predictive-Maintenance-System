@@ -130,6 +130,34 @@ def complete(features: pd.DataFrame) -> pd.DataFrame:
     return features.dropna(subset=FEATURES)
 
 
+def windows_features(windows: list[dict]) -> pd.DataFrame:
+    """Features at the last telemetry hour of each machine, from raw records (API payloads).
+
+    Each window: machine_id, model, age, telemetry (datetime, volt, rotate, pressure,
+    vibration), errors (datetime, error_id) and replacements (datetime, comp). All machines go
+    through one ``build_features`` call, so 100 machines cost about as much as one.
+    Returns one row per window, in the order given.
+    """
+    tel, err, rep, info = [], [], [], []
+    for w in windows:
+        m = w["machine_id"]
+        tel.append(pd.DataFrame(w["telemetry"]).assign(machineID=m))
+        err.append(pd.DataFrame(w["errors"], columns=["datetime", "error_id"]).assign(machineID=m))
+        rep.append(
+            pd.DataFrame(w["replacements"], columns=["datetime", "comp"]).assign(machineID=m)
+        )
+        info.append({"machineID": m, "model": w["model"], "age": w["age"]})
+    errors = pd.concat(err, ignore_index=True).rename(columns={"error_id": "errorID"})
+    rows = build_features(
+        pd.concat(tel, ignore_index=True),
+        errors.dropna(subset=["datetime"]),
+        pd.concat(rep, ignore_index=True),
+        pd.DataFrame(info),
+    )
+    last = rows.groupby("machineID", sort=False).tail(1).set_index("machineID")
+    return last.loc[[w["machine_id"] for w in windows]].reset_index()
+
+
 def window_features(
     machine_id: int,
     model: str,
@@ -138,18 +166,13 @@ def window_features(
     errors: list[dict],
     replacements: list[dict],
 ) -> pd.DataFrame:
-    """Features at the last telemetry hour of one machine, from raw records (API payload).
-
-    ``telemetry`` items: datetime, volt, rotate, pressure, vibration; ``errors``: datetime,
-    error_id; ``replacements``: datetime, comp. Returns a one-row frame.
-    """
-    tel = pd.DataFrame(telemetry).assign(machineID=machine_id)
-    err = pd.DataFrame(errors, columns=["datetime", "error_id"]).rename(
-        columns={"error_id": "errorID"}
-    )
-    rep = pd.DataFrame(replacements, columns=["datetime", "comp"])
-    machines = pd.DataFrame([{"machineID": machine_id, "model": model, "age": age}])
-    rows = build_features(
-        tel, err.assign(machineID=machine_id), rep.assign(machineID=machine_id), machines
-    )
-    return rows.tail(1).reset_index(drop=True)
+    """Features at the last telemetry hour of one machine; see ``windows_features``."""
+    window = {
+        "machine_id": machine_id,
+        "model": model,
+        "age": age,
+        "telemetry": telemetry,
+        "errors": errors,
+        "replacements": replacements,
+    }
+    return windows_features([window])

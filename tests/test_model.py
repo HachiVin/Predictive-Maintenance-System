@@ -41,7 +41,7 @@ def test_signals_name_errors_and_old_components(predictor):
     row["error1_count_24h"] = 2
     row["days_since_comp2"] = predictor.reference["quantiles"]["days_since_comp2"]["p90"] + 50
     signals = predictor.signals(row)
-    assert "error1 ×2 in 24 h" in signals and any("comp2" in s for s in signals)
+    assert "error1 logged 2 times in 24 h" in signals and any("comp2" in s for s in signals)
 
 
 def test_psi_is_small_for_the_same_distribution_and_large_for_a_shift():

@@ -17,11 +17,40 @@ MODEL_PATH = ROOT / "models" / "pdm_rf.joblib"
 CARD_PATH = ROOT / "models" / "model_card.json"
 
 ALERT, WATCH, OK = "ALERT", "WATCH", "OK"
-ACTIONS = {
-    ALERT: "Failure likely within 24 h. Inspect before the next shift.",
-    WATCH: "Risk is rising. Check at the next planned stop.",
-    OK: "No action needed.",
+# Texts in English (API, README) and Indonesian (dashboard). Same meaning, same order.
+TEXT = {
+    "en": {
+        ALERT: "Failure likely within 24 h. Inspect before the next shift.",
+        WATCH: "Risk is rising. Check at the next planned stop.",
+        OK: "No action needed.",
+        "error": lambda e, n: f"{e} logged {'once' if n == 1 else f'{n} times'} in 24 h",
+        "comp": lambda c, d: f"{c} not replaced for {d:.0f} days",
+        "high": lambda s: f"{s} higher than usual",
+        "low": lambda s: f"{s} lower than usual",
+        "sensors": {
+            "volt": "voltage",
+            "rotate": "rotation",
+            "pressure": "pressure",
+            "vibration": "vibration",
+        },
+    },
+    "id": {
+        ALERT: "Kemungkinan rusak dalam 24 jam. Periksa sebelum shift berikutnya.",
+        WATCH: "Risiko meningkat. Periksa saat mesin berhenti terjadwal berikutnya.",
+        OK: "Tidak perlu tindakan.",
+        "error": lambda e, n: f"{e} muncul {n} kali dalam 24 jam",
+        "comp": lambda c, d: f"{c} belum diganti selama {d:.0f} hari",
+        "high": lambda s: f"{s} lebih tinggi dari biasanya",
+        "low": lambda s: f"{s} lebih rendah dari biasanya",
+        "sensors": {
+            "volt": "tegangan",
+            "rotate": "putaran",
+            "pressure": "tekanan",
+            "vibration": "getaran",
+        },
+    },
 }
+ACTIONS = {status: TEXT["en"][status] for status in (ALERT, WATCH, OK)}
 
 
 class ModelUnavailable(RuntimeError):
@@ -87,37 +116,40 @@ class Predictor:
             return WATCH
         return OK
 
-    def assess(self, rows: pd.DataFrame) -> list[Assessment]:
+    def assess(self, rows: pd.DataFrame, lang: str = "en") -> list[Assessment]:
         out = []
         for risk, (_i, row) in zip(self.risk(rows), rows.iterrows(), strict=True):
             status = self.status(float(risk))
-            out.append(Assessment(float(risk), status, ACTIONS[status], self.signals(row)))
+            out.append(
+                Assessment(float(risk), status, TEXT[lang][status], self.signals(row, lang=lang))
+            )
         return out
 
-    def signals(self, row: pd.Series, limit: int = 3) -> list[str]:
+    def signals(self, row: pd.Series, limit: int = 3, lang: str = "en") -> list[str]:
         """Readings that stand out against the training data, most important feature first.
 
         These are not causes: a Random Forest has no single reason for a score. They point a
         technician at what to look at, ordered by how much the model relies on each feature.
         """
         q = self.reference["quantiles"]
+        text = TEXT[lang]
+        weight = self.importances.get
         found: list[tuple[float, str]] = []
         for error in ERRORS:
-            n = int(row[f"{error}_count_24h"])
+            key = f"{error}_count_24h"
+            n = int(row[key])
             if n:
-                key = f"{error}_count_24h"
-                found.append((self.importances.get(key, 0), f"{error} ×{n} in 24 h"))
+                found.append((weight(key, 0), text["error"](error, n)))
         for comp in COMPONENTS:
             key = f"days_since_{comp}"
             if row[key] > q[key]["p90"]:
-                found.append(
-                    (self.importances.get(key, 0), f"{comp} {row[key]:.0f} days since replaced")
-                )
+                found.append((weight(key, 0), text["comp"](comp, row[key])))
         for sensor in SENSORS:
             key = f"{sensor}_mean_24h"
+            name = text["sensors"][sensor]
             if row[key] > q[key]["p99"]:
-                found.append((self.importances.get(key, 0), f"{sensor} 24 h mean high"))
+                found.append((weight(key, 0), text["high"](name)))
             elif row[key] < q[key]["p01"]:
-                found.append((self.importances.get(key, 0), f"{sensor} 24 h mean low"))
+                found.append((weight(key, 0), text["low"](name)))
         found.sort(key=lambda item: -item[0])
         return [text for _w, text in found[:limit]]

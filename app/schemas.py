@@ -89,3 +89,20 @@ class Prediction(BaseModel):
     signals: list[str] = Field(description="Readings that stand out; not causes")
     thresholds: dict[str, float]
     model_version: str
+
+
+class InspectionRequest(BaseModel):
+    machines: list[MachineWindow] = Field(min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def _unique(self) -> InspectionRequest:
+        ids = [m.machine_id for m in self.machines]
+        if len(ids) != len(set(ids)):
+            raise ValueError("each machine_id may appear only once")
+        return self
+
+
+class InspectionResult(BaseModel):
+    predictions: list[Prediction] = Field(description="Alert first, then watch, then normal")
+    summary: dict[str, float] = Field(description="machines, alert, watch, to_inspect")
+    latency_ms: float

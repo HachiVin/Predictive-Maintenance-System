@@ -12,8 +12,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 
-from app.schemas import MachineWindow, Prediction
-from pdm.features import window_features
+from app.schemas import InspectionRequest, InspectionResult, MachineWindow, Prediction
+from pdm.features import windows_features
 from pdm.model import CARD_PATH, ModelUnavailable, Predictor
 from pdm.monitoring import Monitor
 
@@ -71,41 +71,72 @@ def metrics(request: Request) -> dict:
     return request.app.state.monitor.summary()
 
 
-@app.post("/predict", response_model=Prediction)
-def predict(window: MachineWindow, request: Request) -> Prediction:
+def _window(window: MachineWindow) -> dict:
+    return {
+        "machine_id": window.machine_id,
+        "model": window.model,
+        "age": window.age,
+        "telemetry": [r.model_dump() for r in window.telemetry],
+        "errors": [e.model_dump() for e in window.errors],
+        "replacements": [r.model_dump() for r in window.replacements],
+    }
+
+
+def _score(windows: list[MachineWindow], request: Request) -> tuple[list[Prediction], float]:
     predictor = _predictor(request)
     start = time.perf_counter()
-    row = window_features(
-        window.machine_id,
-        window.model,
-        window.age,
-        [r.model_dump() for r in window.telemetry],
-        [e.model_dump() for e in window.errors],
-        [r.model_dump() for r in window.replacements],
-    )
-    assessment = predictor.assess(row)[0]
+    rows = windows_features([_window(w) for w in windows])
+    assessments = predictor.assess(rows)
     latency_ms = (time.perf_counter() - start) * 1000
-    request.app.state.monitor.record(
-        latency_ms, assessment.risk, assessment.status, row.iloc[0].to_dict()
-    )
+    out = []
+    for window, (_i, row), a in zip(windows, rows.iterrows(), assessments, strict=True):
+        request.app.state.monitor.record(latency_ms / len(windows), a.risk, a.status, row.to_dict())
+        out.append(
+            Prediction(
+                machine_id=window.machine_id,
+                as_of=window.telemetry[-1].datetime,
+                risk=round(a.risk, 4),
+                status=a.status,
+                action=a.action,
+                signals=a.signals,
+                thresholds=predictor.thresholds,
+                model_version=predictor.version,
+            )
+        )
     log.info(
         json.dumps(
             {
                 "event": "prediction",
-                "machine_id": window.machine_id,
-                "risk": round(assessment.risk, 4),
-                "status": assessment.status,
+                "machines": len(windows),
+                "alerts": sum(p.status == "ALERT" for p in out),
                 "latency_ms": round(latency_ms, 2),
             }
         )
     )
-    return Prediction(
-        machine_id=window.machine_id,
-        as_of=window.telemetry[-1].datetime,
-        risk=round(assessment.risk, 4),
-        status=assessment.status,
-        action=assessment.action,
-        signals=assessment.signals,
-        thresholds=predictor.thresholds,
-        model_version=predictor.version,
+    return out, latency_ms
+
+
+@app.post("/predict", response_model=Prediction)
+def predict(window: MachineWindow, request: Request) -> Prediction:
+    """Failure risk of one machine in the next 24 hours."""
+    return _score([window], request)[0][0]
+
+
+@app.post("/inspect", response_model=InspectionResult)
+def inspect(body: InspectionRequest, request: Request) -> InspectionResult:
+    """A shift inspection: score up to 500 machines in one call and list the ones to check."""
+    predictions, latency_ms = _score(body.machines, request)
+    order = {"ALERT": 0, "WATCH": 1, "OK": 2}
+    predictions.sort(key=lambda p: (order[p.status], -p.risk, p.machine_id))
+    alert = sum(p.status == "ALERT" for p in predictions)
+    watch = sum(p.status == "WATCH" for p in predictions)
+    return InspectionResult(
+        predictions=predictions,
+        summary={
+            "machines": len(predictions),
+            "alert": alert,
+            "watch": watch,
+            "to_inspect": alert + watch,
+        },
+        latency_ms=round(latency_ms, 2),
     )

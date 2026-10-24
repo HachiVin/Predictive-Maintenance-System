@@ -47,7 +47,6 @@ VERSION = "2.0.0"
 TRAIN_END = pd.Timestamp("2015-07-01")
 VALID_END = pd.Timestamp("2015-09-01")
 GAP = pd.Timedelta(hours=HORIZON_HOURS)
-REPLAY_MACHINES = 12
 SEED = 42
 
 
@@ -155,13 +154,8 @@ def latency(model, row: pd.DataFrame, n: int = 300) -> dict[str, float]:
 
 
 def write_replay(raw: data.Tables, test: pd.DataFrame, directory: Path) -> list[int]:
-    """Test-period data of a few machines: those with the most failures plus quiet ones."""
-    counts = raw.failures[raw.failures["datetime"] >= VALID_END].groupby("machineID").size()
-    busy = counts.sort_values(ascending=False).index[: REPLAY_MACHINES - 3].tolist()
-    quiet = sorted(set(test["machineID"]) - set(counts.index))[:3]
-    if len(quiet) < 3:
-        quiet = counts.sort_values().index[:3].tolist()
-    machines = sorted(set(busy) | set(quiet))
+    """Test-period data of every machine, for the dashboard's inspections and the tests."""
+    machines = sorted(test["machineID"].unique().tolist())
     start = VALID_END - pd.Timedelta(hours=HORIZON_HOURS)  # history for the first window
     directory.mkdir(parents=True, exist_ok=True)
     pick = lambda frame: frame[frame["machineID"].isin(machines)]  # noqa: E731
@@ -281,7 +275,7 @@ def main() -> None:
         "comparison": comparison,
         "latency_ms_single_row": speed,
         "importances": importances,
-        "replay_machines": machines,
+        "replay_machines": len(machines),
     }
     CARD_PATH.write_text(json.dumps(card, indent=2))
     size = MODEL_PATH.stat().st_size / 1e6

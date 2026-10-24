@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "trained_at": "2026-10-23",
+  "trained_at": "2026-10-24",
   "sklearn": "1.9.1",
   "target": "failure of any component within the next 24 hours",
   "algorithm": "RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=5, class_weight='balanced')",
@@ -118,8 +118,8 @@
     }
   ],
   "latency_ms_single_row": {
-    "p50": 4.08,
-    "p95": 7.46
+    "p50": 5.54,
+    "p95": 6.15
   },
   "importances": {
     "volt_mean_24h": 0.0881,
@@ -156,18 +156,5 @@
     "rotate_std_3h": 0.0001,
     "vibration_std_3h": 0.0001
   },
-  "replay_machines": [
-    6,
-    10,
-    13,
-    14,
-    20,
-    21,
-    23,
-    49,
-    56,
-    83,
-    85,
-    88
-  ]
+  "replay_machines": 100
 }
